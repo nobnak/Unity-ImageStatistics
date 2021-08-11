@@ -1,0 +1,50 @@
+#pragma kernel ReduceTextureH
+#pragma kernel ReduceBuffer
+
+
+
+RWStructuredBuffer<float4> Result;
+
+Texture2D<float4> MainTex;
+uint2 MainTex_Len;
+StructuredBuffer<float4> MainBuf;
+uint MainBuf_Len;
+
+
+
+[numthreads(64, 1, 1)]
+void ReduceTextureH(uint3 id : SV_DispatchThreadID) {
+    if (id.x >= MainTex_Len.y)
+        return;
+
+    float4 m = 0;
+    float4 s = 0;
+    for (uint j = 0; j < MainTex_Len.x; j++) {
+        float4 c = MainTex[uint2(j, id.x)];
+        float4 d = c - m;
+        m += d / (j + 1);
+        s += (j * d * d) / (j + 1);
+    }
+    Result[2 * id.x] = m;
+    Result[2 * id.x + 1] = s;
+}
+
+
+
+[numthreads(1, 1, 1)]
+void ReduceBuffer(uint3 id : SV_DispatchThreadID) {
+    if (id.x >= 1)
+        return;
+
+    float4 m = 0;
+    float4 s = 0;
+    for (uint j = 0; j < (MainBuf_Len / 2); j++) {
+        float4 m0 = MainBuf[2 * j];
+        float4 s0 = MainBuf[2 * j + 1];
+        float4 d = m0 - m;
+        m += d / (j + 1);
+        s += s0;
+    }
+    Result[0] = m;
+    Result[1] = s;
+}
